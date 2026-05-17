@@ -4,17 +4,49 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Realistic Earth with NASA NEO API</title>
+
+    <title>Earth Defense Simulator</title>
 
     <style>
         body {
             margin: 0;
             overflow: hidden;
             background: #000;
+            font-family: sans-serif;
         }
 
         canvas {
             display: block;
+        }
+
+        #infoPanel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            z-index: 10;
+            line-height: 1.6;
+        }
+
+        #infoPanel h2 {
+            margin-top: 0;
+            font-size: 18px;
+            color: #66ccff;
+        }
+
+        .danger {
+            color: #ff6666;
+            font-weight: bold;
+        }
+
+        .safe {
+            color: #66ff99;
+            font-weight: bold;
         }
     </style>
 
@@ -22,6 +54,11 @@
 </head>
 
 <body>
+    <div id="infoPanel">
+        <h2>小惑星情報</h2>
+        <p>地球の周りの小惑星をクリックしてください。</p>
+    </div>
+
     <script>
         // =========================
         // シーン
@@ -86,7 +123,7 @@
         scene.add(earth);
 
         // =========================
-        // 雲レイヤー
+        // 雲
         // =========================
         const cloudGeometry = new THREE.SphereGeometry(1.015, 128, 128);
 
@@ -117,10 +154,17 @@
         scene.add(atmosphere);
 
         // =========================
-        // 小惑星グループ
+        // 小惑星管理
         // =========================
         const asteroidGroup = new THREE.Group();
         scene.add(asteroidGroup);
+
+        // クリック判定用
+        const asteroidMeshes = [];
+
+        // Raycaster
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
 
         // =========================
         // NASA API
@@ -153,19 +197,25 @@
             }
         }
 
+        // =========================
+        // 小惑星生成
+        // =========================
         function createAsteroid3D(asteroid, index, total) {
             const diameter =
                 asteroid.estimated_diameter.kilometers.estimated_diameter_max;
 
-            // 見やすさ重視の対数スケーリング
             const size = Math.max(0.025, Math.log(diameter + 1) * 0.05);
 
             const geometry = new THREE.SphereGeometry(size, 8, 8);
 
+            const isHazardous = asteroid.is_potentially_hazardous_asteroid;
+
             const material = new THREE.MeshStandardMaterial({
-                color: 0x888888,
+                color: isHazardous ? 0xff3333 : 0x888888,
                 roughness: 0.95,
-                metalness: 0.05
+                metalness: 0.05,
+                emissive: isHazardous ? new THREE.Color(0x330000) : new THREE.Color(0x000000),
+                emissiveIntensity: isHazardous ? 0.8 : 0
             });
 
             const mesh = new THREE.Mesh(geometry, material);
@@ -185,7 +235,60 @@
                 y: 0.005 + Math.random() * 0.01
             };
 
+            // ① 小惑星にNASAデータを保存
+            mesh.userData.asteroid = asteroid;
+
             asteroidGroup.add(mesh);
+
+            // ② クリック判定用配列に追加
+            asteroidMeshes.push(mesh);
+        }
+
+        // =========================
+        // ③ クリック判定
+        // =========================
+        window.addEventListener('click', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            const hits = raycaster.intersectObjects(asteroidMeshes);
+
+            if (hits.length > 0) {
+                const asteroid = hits[0].object.userData.asteroid;
+                showAsteroidInfo(asteroid);
+            }
+        });
+
+        // =========================
+        // ⑤ 情報表示関数
+        // =========================
+        function showAsteroidInfo(asteroid) {
+            const panel = document.getElementById('infoPanel');
+
+            const approach = asteroid.close_approach_data[0];
+
+            const name = asteroid.name;
+            const diameter =
+                asteroid.estimated_diameter.kilometers.estimated_diameter_max;
+
+            const distance = approach.miss_distance.kilometers;
+            const velocity = approach.relative_velocity.kilometers_per_hour;
+            const hazardous = asteroid.is_potentially_hazardous_asteroid;
+
+            panel.innerHTML = `
+        <h2>${name}</h2>
+        <p><strong>推定直径:</strong> ${Number(diameter).toFixed(2)} km</p>
+        <p><strong>接近距離:</strong> ${Number(distance).toLocaleString()} km</p>
+        <p><strong>速度:</strong> ${Number(velocity).toLocaleString()} km/h</p>
+        <p>
+          <strong>危険判定:</strong>
+          <span class="${hazardous ? 'danger' : 'safe'}">
+            ${hazardous ? '危険候補' : '通常'}
+          </span>
+        </p>
+      `;
         }
 
         fetchAsteroids();
