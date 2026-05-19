@@ -244,6 +244,35 @@
             asteroidMeshes.push(mesh);
         }
 
+        function createOrbitLine(radius, yPosition, isHazardous) {
+            const points = [];
+            const segments = 128;
+
+            for (let i = 0; i <= segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+
+                points.push(
+                    new THREE.Vector3(
+                        Math.cos(angle) * radius,
+                        yPosition,
+                        Math.sin(angle) * radius
+                    )
+                );
+            }
+
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+
+            const material = new THREE.LineBasicMaterial({
+                color: isHazardous ? 0xff3333 : 0x66ccff,
+                transparent: true,
+                opacity: isHazardous ? 0.6 : 0.25
+            });
+
+            const orbitLine = new THREE.Line(geometry, material);
+
+            return orbitLine;
+        }
+
         // =========================
         // ③ クリック判定
         // =========================
