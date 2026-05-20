@@ -7,56 +7,41 @@
 
     <title>Earth Defense Simulator</title>
 
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: #000;
-            font-family: sans-serif;
-        }
-
-        canvas {
-            display: block;
-        }
-
-        #infoPanel {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 300px;
-            padding: 16px;
-            background: rgba(0, 0, 0, 0.75);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 12px;
-            z-index: 10;
-            line-height: 1.6;
-        }
-
-        #infoPanel h2 {
-            margin-top: 0;
-            font-size: 18px;
-            color: #66ccff;
-        }
-
-        .danger {
-            color: #ff6666;
-            font-weight: bold;
-        }
-
-        .safe {
-            color: #66ff99;
-            font-weight: bold;
-        }
-    </style>
-
+    <link rel="stylesheet" href="css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 
 <body>
+    <!-- Corner Decorations -->
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-br"></div>
+
+    <!-- Title Bar -->
+    <div id="titleBar">
+        <h1>EARTH <span>DEFENSE</span></h1>
+        <div class="subtitle">Near-Earth Object Monitor</div>
+    </div>
+
+    <!-- Info Panel -->
     <div id="infoPanel">
         <h2>小惑星情報</h2>
         <p>地球の周りの小惑星をクリックしてください。</p>
+    </div>
+
+    <!-- Stats Bar -->
+    <div id="statsBar">
+        <div class="stat-item">
+            <div class="stat-value" id="totalCount">--</div>
+            <div class="stat-label">検出数</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="hazardCount">--</div>
+            <div class="stat-label">危険候補</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="currentDate">--</div>
+            <div class="stat-label">観測日</div>
+        </div>
     </div>
 
     <script>
@@ -192,6 +177,9 @@
                     createAsteroid3D(asteroid, index, asteroids.length);
                 });
 
+                // Update stats bar
+                updateStatsBar(asteroids, date);
+
             } catch (error) {
                 console.error('NASAのデータ取得に失敗しました:', error);
             }
@@ -226,6 +214,9 @@
             mesh.position.x = Math.cos(angle) * distance;
             mesh.position.z = Math.sin(angle) * distance;
             mesh.position.y = (Math.random() - 0.5) * 1.2;
+
+            const orbitLine = createOrbitLine(distance, mesh.position.y, isHazardous);
+            scene.add(orbitLine);
 
             mesh.rotation.x = Math.random() * Math.PI;
             mesh.rotation.y = Math.random() * Math.PI;
@@ -318,6 +309,18 @@
           </span>
         </p>
       `;
+        }
+
+        // =========================
+        // ⑥ Stats Bar更新
+        // =========================
+        function updateStatsBar(asteroids, date) {
+            const total = asteroids.length;
+            const hazardous = asteroids.filter(a => a.is_potentially_hazardous_asteroid).length;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('hazardCount').textContent = hazardous;
+            document.getElementById('currentDate').textContent = date;
         }
 
         fetchAsteroids();
