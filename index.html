@@ -28,6 +28,14 @@
         <p>地球の周りの小惑星をクリックしてください。</p>
     </div>
 
+    <!-- Control Panel -->
+    <div id="controlPanel">
+        <button id="toggleOrbit" class="control-btn active">
+            <span class="btn-icon">&#9711;</span>
+            <span class="btn-label">軌道</span>
+        </button>
+    </div>
+
     <!-- Stats Bar -->
     <div id="statsBar">
         <div class="stat-item">
@@ -74,7 +82,6 @@
         const loader = new THREE.TextureLoader();
 
         const earthTexture = loader.load('./textures/earth_daymap.jpg');
-        const cloudTexture = loader.load('./textures/earth_clouds.png');
         const nightTexture = loader.load('./textures/earth_night.jpg');
         const starTexture = loader.load('./textures/stars.jpg');
 
@@ -108,22 +115,6 @@
         scene.add(earth);
 
         // =========================
-        // 雲
-        // =========================
-        const cloudGeometry = new THREE.SphereGeometry(1.015, 128, 128);
-
-        const cloudMaterial = new THREE.MeshStandardMaterial({
-            map: cloudTexture,
-            transparent: true,
-            opacity: 0.75,
-            depthWrite: false,
-            roughness: 1
-        });
-
-        const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
-        scene.add(clouds);
-
-        // =========================
         // 大気
         // =========================
         const atmosphereGeometry = new THREE.SphereGeometry(1.08, 128, 128);
@@ -146,6 +137,10 @@
 
         // クリック判定用
         const asteroidMeshes = [];
+
+        // 軌道ライン管理用
+        const orbitLines = [];
+        let orbitVisible = true;
 
         // Raycaster
         const raycaster = new THREE.Raycaster();
@@ -217,6 +212,7 @@
 
             const orbitLine = createOrbitLine(distance, mesh.position.y, isHazardous);
             scene.add(orbitLine);
+            orbitLines.push(orbitLine);
 
             mesh.rotation.x = Math.random() * Math.PI;
             mesh.rotation.y = Math.random() * Math.PI;
@@ -263,6 +259,25 @@
 
             return orbitLine;
         }
+
+        // =========================
+        // 軌道ライン表示切替
+        // =========================
+        function toggleOrbitLines() {
+            orbitVisible = !orbitVisible;
+            orbitLines.forEach(line => {
+                line.visible = orbitVisible;
+            });
+
+            const btn = document.getElementById('toggleOrbit');
+            if (orbitVisible) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+
+        document.getElementById('toggleOrbit').addEventListener('click', toggleOrbitLines);
 
         // =========================
         // ③ クリック判定
@@ -332,7 +347,6 @@
             requestAnimationFrame(animate);
 
             earth.rotation.y += 0.0018;
-            clouds.rotation.y += 0.0024;
             atmosphere.rotation.y += 0.0018;
 
             asteroidGroup.rotation.y += 0.001;
