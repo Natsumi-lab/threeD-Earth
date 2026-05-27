@@ -28,12 +28,15 @@
         <p>地球の周りの小惑星をクリックしてください。</p>
     </div>
 
-    <!-- Control Panel -->
+    <!-- Control Panel (below Info Panel) -->
     <div id="controlPanel">
-        <button id="toggleOrbit" class="control-btn active">
-            <span class="btn-icon">&#9711;</span>
-            <span class="btn-label">軌道</span>
-        </button>
+        <div class="toggle-item">
+            <span class="toggle-label">軌道表示</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="toggleOrbit" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
     </div>
 
     <!-- Stats Bar -->
@@ -264,20 +267,14 @@
         // 軌道ライン表示切替
         // =========================
         function toggleOrbitLines() {
-            orbitVisible = !orbitVisible;
+            const checkbox = document.getElementById('toggleOrbit');
+            orbitVisible = checkbox.checked;
             orbitLines.forEach(line => {
                 line.visible = orbitVisible;
             });
-
-            const btn = document.getElementById('toggleOrbit');
-            if (orbitVisible) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
         }
 
-        document.getElementById('toggleOrbit').addEventListener('click', toggleOrbitLines);
+        document.getElementById('toggleOrbit').addEventListener('change', toggleOrbitLines);
 
         // =========================
         // ③ クリック判定
