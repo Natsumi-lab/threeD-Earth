@@ -268,53 +268,102 @@ canvas {
 }
 
 /* =========================
-   Control Panel
+   Control Panel (Below Info Panel)
    ========================= */
 #controlPanel {
     position: fixed;
-    bottom: 100px;
-    left: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    top: 280px;
+    right: 24px;
+    width: 320px;
+    padding: 16px 24px;
+    background: linear-gradient(
+        135deg,
+        rgba(10, 20, 40, 0.85) 0%,
+        rgba(5, 15, 35, 0.9) 100%
+    );
+    border: 1px solid rgba(100, 200, 255, 0.3);
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow:
+        0 0 20px rgba(0, 150, 255, 0.1),
+        0 4px 16px rgba(0, 0, 0, 0.3);
     z-index: 10;
 }
 
-.control-btn {
+.toggle-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
-    background: rgba(10, 20, 40, 0.7);
-    border: 1px solid rgba(100, 200, 255, 0.2);
-    border-radius: 8px;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 12px;
+    justify-content: space-between;
+}
+
+.toggle-label {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.85);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Modern Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 56px;
+    height: 28px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
     cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(60, 60, 80, 0.8);
+    border: 1px solid rgba(100, 100, 120, 0.5);
+    border-radius: 28px;
     transition: all 0.3s ease;
 }
 
-.control-btn:hover {
-    background: rgba(10, 20, 40, 0.9);
-    border-color: rgba(100, 200, 255, 0.4);
-    color: rgba(255, 255, 255, 0.8);
+.toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background: rgba(150, 150, 170, 0.9);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.control-btn.active {
-    border-color: rgba(0, 212, 255, 0.6);
-    color: #00d4ff;
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+/* Checked State - ON */
+.toggle-switch input:checked + .toggle-slider {
+    background: linear-gradient(135deg, rgba(0, 180, 255, 0.6) 0%, rgba(0, 120, 200, 0.8) 100%);
+    border-color: rgba(0, 212, 255, 0.8);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
 }
 
-.control-btn .btn-icon {
-    font-size: 14px;
+.toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(28px);
+    background: #fff;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.6), 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.control-btn .btn-label {
-    text-transform: uppercase;
-    letter-spacing: 1px;
+/* Hover Effect */
+.toggle-switch:hover .toggle-slider {
+    border-color: rgba(100, 200, 255, 0.6);
+}
+
+.toggle-switch input:checked:hover + .toggle-slider {
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
 }
 
 /* =========================
@@ -322,6 +371,14 @@ canvas {
    ========================= */
 @media (max-width: 768px) {
     #infoPanel {
+        width: calc(100% - 48px);
+        right: 24px;
+        left: 24px;
+        top: auto;
+        bottom: 160px;
+    }
+
+    #controlPanel {
         width: calc(100% - 48px);
         right: 24px;
         left: 24px;
