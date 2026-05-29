@@ -37,6 +37,35 @@
                 <span class="toggle-slider"></span>
             </label>
         </div>
+        <div class="toggle-item">
+            <span class="toggle-label">星表示</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="toggleStars" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Date Control Panel -->
+    <div id="dateControlPanel">
+        <div class="date-display">
+            <span class="date-label">観測日</span>
+            <span class="date-value" id="displayDate">--</span>
+        </div>
+        <div class="date-buttons">
+            <button id="prevDay" class="date-btn">前日</button>
+            <button id="nextDay" class="date-btn">翌日</button>
+            <button id="plus7Days" class="date-btn">+7日</button>
+            <button id="plus30Days" class="date-btn">+30日</button>
+            <button id="toToday" class="date-btn accent">今日に戻る</button>
+        </div>
+        <div class="slider-container">
+            <span class="slider-label">タイムスライダー</span>
+            <div class="slider-wrapper">
+                <input type="range" id="timeSlider" min="0" max="30" value="0">
+                <span class="slider-value" id="sliderValue">今日</span>
+            </div>
+        </div>
     </div>
 
     <!-- Stats Bar -->
@@ -150,11 +179,94 @@
         const mouse = new THREE.Vector2();
 
         // =========================
+        // 日付管理
+        // =========================
+        let currentDate = formatDate(new Date());
+        const today = formatDate(new Date());
+
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function addDays(dateString, days) {
+            const date = new Date(dateString);
+            date.setDate(date.getDate() + days);
+            return formatDate(date);
+        }
+
+        function updateDateDisplay() {
+            document.getElementById('displayDate').textContent = currentDate;
+        }
+
+        // =========================
+        // 小惑星・軌道線クリア
+        // =========================
+        function clearAsteroids() {
+            // asteroidGroupの中身を削除
+            while (asteroidGroup.children.length > 0) {
+                const child = asteroidGroup.children[0];
+                asteroidGroup.remove(child);
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            }
+
+            // 軌道線を削除
+            orbitLines.forEach(line => {
+                scene.remove(line);
+                if (line.geometry) line.geometry.dispose();
+                if (line.material) line.material.dispose();
+            });
+            orbitLines.length = 0;
+
+            // クリック判定用配列をクリア
+            asteroidMeshes.length = 0;
+        }
+
+        function resetInfoPanel() {
+            const panel = document.getElementById('infoPanel');
+            panel.innerHTML = `
+                <h2>小惑星情報</h2>
+                <p>地球の周りの小惑星をクリックしてください。</p>
+            `;
+        }
+
+        function showLoadingPanel() {
+            const panel = document.getElementById('infoPanel');
+            panel.innerHTML = `
+                <h2>小惑星情報</h2>
+                <p>データ取得中...</p>
+            `;
+        }
+
+        function showNoDataPanel() {
+            const panel = document.getElementById('infoPanel');
+            panel.innerHTML = `
+                <h2>小惑星情報</h2>
+                <p>この日付の小惑星データはありません</p>
+            `;
+        }
+
+        function showErrorPanel() {
+            const panel = document.getElementById('infoPanel');
+            panel.innerHTML = `
+                <h2>小惑星情報</h2>
+                <p>NASA APIの取得に失敗しました</p>
+            `;
+        }
+
+        // =========================
         // NASA API
         // =========================
-        async function fetchAsteroids() {
+        async function fetchAsteroids(date) {
             const apiKey = 'DEMO_KEY';
-            const date = '2026-05-16';
+
+            // 既存データをクリア
+            clearAsteroids();
+            showLoadingPanel();
+            updateDateDisplay();
 
             const url = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${date}&end_date=${date}&api_key=${apiKey}`;
 
@@ -166,8 +278,10 @@
 
                 const asteroids = data.near_earth_objects[date];
 
-                if (!asteroids) {
+                if (!asteroids || asteroids.length === 0) {
                     console.warn('この日付の小惑星データがありません');
+                    showNoDataPanel();
+                    updateStatsBar([], date);
                     return;
                 }
 
@@ -177,9 +291,11 @@
 
                 // Update stats bar
                 updateStatsBar(asteroids, date);
+                resetInfoPanel();
 
             } catch (error) {
                 console.error('NASAのデータ取得に失敗しました:', error);
+                showErrorPanel();
             }
         }
 
@@ -277,6 +393,20 @@
         document.getElementById('toggleOrbit').addEventListener('change', toggleOrbitLines);
 
         // =========================
+        // 星表示切替
+        // =========================
+        function toggleStarsBackground() {
+            const checkbox = document.getElementById('toggleStars');
+            if (checkbox.checked) {
+                scene.background = starTexture;
+            } else {
+                scene.background = new THREE.Color(0x000000);
+            }
+        }
+
+        document.getElementById('toggleStars').addEventListener('change', toggleStarsBackground);
+
+        // =========================
         // ③ クリック判定
         // =========================
         window.addEventListener('click', (event) => {
@@ -335,7 +465,67 @@
             document.getElementById('currentDate').textContent = date;
         }
 
-        fetchAsteroids();
+        // =========================
+        // 日付変更ハンドラー
+        // =========================
+        function changeDate(newDate) {
+            currentDate = newDate;
+            fetchAsteroids(currentDate);
+
+            // スライダーの値も更新
+            const daysDiff = Math.round((new Date(currentDate) - new Date(today)) / (1000 * 60 * 60 * 24));
+            const slider = document.getElementById('timeSlider');
+            if (daysDiff >= 0 && daysDiff <= 30) {
+                slider.value = daysDiff;
+                updateSliderLabel(daysDiff);
+            }
+        }
+
+        function updateSliderLabel(days) {
+            const label = document.getElementById('sliderValue');
+            if (days === 0) {
+                label.textContent = '今日';
+            } else {
+                label.textContent = `${days}日後`;
+            }
+        }
+
+        // ボタンイベントリスナー
+        document.getElementById('prevDay').addEventListener('click', () => {
+            changeDate(addDays(currentDate, -1));
+        });
+
+        document.getElementById('nextDay').addEventListener('click', () => {
+            changeDate(addDays(currentDate, 1));
+        });
+
+        document.getElementById('plus7Days').addEventListener('click', () => {
+            changeDate(addDays(currentDate, 7));
+        });
+
+        document.getElementById('plus30Days').addEventListener('click', () => {
+            changeDate(addDays(currentDate, 30));
+        });
+
+        document.getElementById('toToday').addEventListener('click', () => {
+            changeDate(today);
+        });
+
+        // スライダーイベントリスナー
+        document.getElementById('timeSlider').addEventListener('input', (e) => {
+            const days = parseInt(e.target.value);
+            updateSliderLabel(days);
+        });
+
+        document.getElementById('timeSlider').addEventListener('change', (e) => {
+            const days = parseInt(e.target.value);
+            const newDate = addDays(today, days);
+            currentDate = newDate;
+            fetchAsteroids(currentDate);
+        });
+
+        // 初期化
+        fetchAsteroids(currentDate);
 
         // =========================
         // アニメーション
