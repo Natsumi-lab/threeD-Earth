@@ -9,6 +9,7 @@
 
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 
 <body>
@@ -107,6 +108,15 @@
         renderer.outputEncoding = THREE.sRGBEncoding;
 
         document.body.appendChild(renderer.domElement);
+
+        // =========================
+        // カメラコントロール
+        // =========================
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 1.5;
+        controls.maxDistance = 10;
 
         // =========================
         // テクスチャ
@@ -543,6 +553,7 @@
                 asteroid.rotation.y += asteroid.userData.rotationSpeed.y;
             });
 
+            controls.update();
             renderer.render(scene, camera);
         }
 
