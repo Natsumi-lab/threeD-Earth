@@ -45,6 +45,7 @@
                 <span class="toggle-slider"></span>
             </label>
         </div>
+        <button id="resetCamera" class="reset-btn">カメラリセット</button>
     </div>
 
     <!-- Date Control Panel -->
@@ -117,6 +118,39 @@
         controls.dampingFactor = 0.05;
         controls.minDistance = 1.5;
         controls.maxDistance = 10;
+
+        // デフォルトカメラ位置を保存
+        const defaultCameraPosition = camera.position.clone();
+        const defaultControlsTarget = controls.target.clone();
+
+        // カメラリセット関数
+        function resetCamera() {
+            // スムーズにリセット
+            const duration = 500; // ms
+            const startPosition = camera.position.clone();
+            const startTarget = controls.target.clone();
+            const startTime = performance.now();
+
+            function animateReset() {
+                const elapsed = performance.now() - startTime;
+                const t = Math.min(elapsed / duration, 1);
+                // イージング (ease-out)
+                const eased = 1 - Math.pow(1 - t, 3);
+
+                camera.position.lerpVectors(startPosition, defaultCameraPosition, eased);
+                controls.target.lerpVectors(startTarget, defaultControlsTarget, eased);
+                controls.update();
+
+                if (t < 1) {
+                    requestAnimationFrame(animateReset);
+                }
+            }
+
+            animateReset();
+        }
+
+        // リセットボタンイベント
+        document.getElementById('resetCamera').addEventListener('click', resetCamera);
 
         // =========================
         // テクスチャ
