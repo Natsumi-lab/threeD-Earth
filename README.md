@@ -1,6 +1,7 @@
 # Earth Defense Simulator
 
-地球近傍天体（NEO）をリアルタイムで可視化する3Dシミュレーターです。Three.jsとNASA NeoWs APIを使用しています。
+地球近傍天体（NEO）をリアルタイムで可視化する3Dシミュレーターです。  
+Three.jsとNASA NeoWs APIを使用しています。
 
 ## 機能
 
