@@ -45,6 +45,14 @@
                 <span class="toggle-slider"></span>
             </label>
         </div>
+        <div class="toggle-item">
+            <span class="toggle-label">人工衛星</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="toggleSatellites" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <button id="loadSatellites" class="reset-btn">衛星データ取得</button>
         <button id="resetCamera" class="reset-btn">カメラリセット</button>
     </div>
 
@@ -217,6 +225,32 @@
         // 軌道ライン管理用
         const orbitLines = [];
         let orbitVisible = true;
+
+        // =========================
+        // 人工衛星管理
+        // =========================
+        const satelliteGroup = new THREE.Group();
+        scene.add(satelliteGroup);
+
+        // クリック判定用
+        const satelliteMeshes = [];
+
+        // 衛星軌道ライン管理用
+        const satelliteOrbitLines = [];
+        let satellitesVisible = true;
+        let satellitesLoaded = false;
+
+        // N2YO API Key (無料登録: https://www.n2yo.com/api/)
+        const N2YO_API_KEY = 'DEMO_KEY'; // ご自身のAPIキーに置き換えてください
+
+        // 衛星カテゴリID
+        const SATELLITE_CATEGORIES = {
+            ISS: 25544,           // ISS NORAD ID
+            STARLINK: 52,         // Starlink category
+            GPS: 20,              // GPS Operational
+            WEATHER: 4,           // Weather satellites
+            AMATEUR: 18           // Amateur radio
+        };
 
         // Raycaster
         const raycaster = new THREE.Raycaster();
@@ -459,11 +493,20 @@
 
             raycaster.setFromCamera(mouse, camera);
 
-            const hits = raycaster.intersectObjects(asteroidMeshes);
-
-            if (hits.length > 0) {
-                const asteroid = hits[0].object.userData.asteroid;
+            // 小惑星の判定
+            const asteroidHits = raycaster.intersectObjects(asteroidMeshes);
+            if (asteroidHits.length > 0) {
+                const asteroid = asteroidHits[0].object.userData.asteroid;
                 showAsteroidInfo(asteroid);
+                return;
+            }
+
+            // 衛星の判定
+            const satelliteHits = raycaster.intersectObjects(satelliteMeshes);
+            if (satelliteHits.length > 0) {
+                const satellite = satelliteHits[0].object.userData.satellite;
+                const type = satelliteHits[0].object.userData.satelliteType;
+                showSatelliteInfo(satellite, type);
             }
         });
 
@@ -507,6 +550,271 @@
             document.getElementById('totalCount').textContent = total;
             document.getElementById('hazardCount').textContent = hazardous;
             document.getElementById('currentDate').textContent = date;
+        }
+
+        // =========================
+        // 人工衛星機能
+        // =========================
+
+        // 衛星データをクリア
+        function clearSatellites() {
+            while (satelliteGroup.children.length > 0) {
+                const child = satelliteGroup.children[0];
+                satelliteGroup.remove(child);
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            }
+
+            satelliteOrbitLines.forEach(line => {
+                scene.remove(line);
+                if (line.geometry) line.geometry.dispose();
+                if (line.material) line.material.dispose();
+            });
+            satelliteOrbitLines.length = 0;
+            satelliteMeshes.length = 0;
+        }
+
+        // N2YO APIから衛星データを取得
+        async function fetchSatellites() {
+            if (N2YO_API_KEY === 'DEMO_KEY') {
+                console.warn('N2YO APIキーが設定されていません。サンプルデータを使用します。');
+                createSampleSatellites();
+                return;
+            }
+
+            clearSatellites();
+
+            const panel = document.getElementById('infoPanel');
+            panel.innerHTML = `<h2>衛星情報</h2><p>衛星データ取得中...</p>`;
+
+            try {
+                // 観測地点（東京）からの衛星を取得
+                const lat = 35.6762;
+                const lng = 139.6503;
+                const alt = 0;
+                const radius = 90; // 度
+                const categoryId = SATELLITE_CATEGORIES.STARLINK;
+
+                const url = `https://api.n2yo.com/rest/v1/satellite/above/${lat}/${lng}/${alt}/${radius}/${categoryId}/&apiKey=${N2YO_API_KEY}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.above && data.above.length > 0) {
+                    // 最大200個まで表示
+                    const satellites = data.above.slice(0, 200);
+                    satellites.forEach((sat, index) => {
+                        createSatellite3D(sat, index, satellites.length, 'starlink');
+                    });
+
+                    panel.innerHTML = `<h2>衛星情報</h2><p>${satellites.length}個の衛星を読み込みました。<br>クリックして詳細を表示</p>`;
+                    satellitesLoaded = true;
+                } else {
+                    createSampleSatellites();
+                }
+
+            } catch (error) {
+                console.error('衛星データ取得エラー:', error);
+                createSampleSatellites();
+            }
+        }
+
+        // サンプル衛星データを作成
+        function createSampleSatellites() {
+            clearSatellites();
+
+            // サンプル衛星データ（実際の軌道をシミュレート）
+            const sampleSatellites = [
+                // ISS
+                { satname: 'ISS (ZARYA)', satid: 25544, satalt: 420, satlat: 35, satlng: 140, type: 'iss' },
+                // Starlink衛星群
+                ...Array.from({ length: 100 }, (_, i) => ({
+                    satname: `STARLINK-${1000 + i}`,
+                    satid: 44000 + i,
+                    satalt: 550,
+                    satlat: (Math.random() - 0.5) * 100,
+                    satlng: Math.random() * 360 - 180,
+                    type: 'starlink'
+                })),
+                // GPS衛星
+                ...Array.from({ length: 24 }, (_, i) => ({
+                    satname: `GPS BIIR-${i + 1}`,
+                    satid: 28000 + i,
+                    satalt: 20200,
+                    satlat: 55 * Math.sin(i * Math.PI / 12),
+                    satlng: i * 30,
+                    type: 'gps'
+                })),
+                // 気象衛星
+                { satname: 'HIMAWARI-8', satid: 40267, satalt: 35786, satlat: 0, satlng: 140.7, type: 'weather' },
+                { satname: 'HIMAWARI-9', satid: 41836, satalt: 35786, satlat: 0, satlng: 140.7, type: 'weather' },
+                { satname: 'GOES-16', satid: 41866, satalt: 35786, satlat: 0, satlng: -75.2, type: 'weather' },
+            ];
+
+            sampleSatellites.forEach((sat, index) => {
+                createSatellite3D(sat, index, sampleSatellites.length, sat.type);
+            });
+
+            const panel = document.getElementById('infoPanel');
+            panel.innerHTML = `<h2>衛星情報</h2><p>${sampleSatellites.length}個のサンプル衛星を表示中<br>（N2YO APIキーを設定すると実データを取得）</p>`;
+            satellitesLoaded = true;
+        }
+
+        // 衛星3Dオブジェクト生成
+        function createSatellite3D(satellite, index, total, type) {
+            // 高度に基づく距離（地球半径=1として計算）
+            const earthRadiusKm = 6371;
+            const altitudeKm = satellite.satalt || 550;
+            const orbitRadius = 1 + (altitudeKm / earthRadiusKm) * 0.3; // スケール調整
+
+            // 衛星のサイズ
+            let size = 0.008;
+            let color = 0x00ffff;
+            let emissiveColor = 0x003333;
+
+            switch (type) {
+                case 'iss':
+                    size = 0.025;
+                    color = 0xffff00;
+                    emissiveColor = 0x333300;
+                    break;
+                case 'starlink':
+                    size = 0.006;
+                    color = 0x00ffff;
+                    emissiveColor = 0x003333;
+                    break;
+                case 'gps':
+                    size = 0.012;
+                    color = 0x00ff00;
+                    emissiveColor = 0x003300;
+                    break;
+                case 'weather':
+                    size = 0.018;
+                    color = 0xff00ff;
+                    emissiveColor = 0x330033;
+                    break;
+                default:
+                    break;
+            }
+
+            const geometry = new THREE.SphereGeometry(size, 8, 8);
+            const material = new THREE.MeshStandardMaterial({
+                color: color,
+                roughness: 0.3,
+                metalness: 0.8,
+                emissive: new THREE.Color(emissiveColor),
+                emissiveIntensity: 1.0
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+
+            // 緯度経度から位置を計算
+            const lat = (satellite.satlat || 0) * Math.PI / 180;
+            const lng = (satellite.satlng || 0) * Math.PI / 180;
+
+            mesh.position.x = orbitRadius * Math.cos(lat) * Math.cos(lng);
+            mesh.position.y = orbitRadius * Math.sin(lat);
+            mesh.position.z = orbitRadius * Math.cos(lat) * Math.sin(lng);
+
+            // 軌道ライン作成（静止軌道以外）
+            if (type !== 'weather') {
+                const orbitLine = createSatelliteOrbitLine(orbitRadius, lat, type);
+                scene.add(orbitLine);
+                satelliteOrbitLines.push(orbitLine);
+            }
+
+            // 衛星の公転速度（軌道高度に反比例）
+            mesh.userData.orbitSpeed = 0.001 / Math.sqrt(orbitRadius);
+            mesh.userData.orbitRadius = orbitRadius;
+            mesh.userData.orbitInclination = lat;
+            mesh.userData.orbitPhase = lng;
+            mesh.userData.satellite = satellite;
+            mesh.userData.satelliteType = type;
+
+            satelliteGroup.add(mesh);
+            satelliteMeshes.push(mesh);
+        }
+
+        // 衛星軌道ライン作成
+        function createSatelliteOrbitLine(radius, inclination, type) {
+            const points = [];
+            const segments = 64;
+
+            for (let i = 0; i <= segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+
+                // 傾斜軌道
+                const x = radius * Math.cos(angle);
+                const y = radius * Math.sin(angle) * Math.sin(inclination);
+                const z = radius * Math.sin(angle) * Math.cos(inclination);
+
+                points.push(new THREE.Vector3(x, y, z));
+            }
+
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+
+            let color = 0x00ffff;
+            let opacity = 0.15;
+
+            switch (type) {
+                case 'iss':
+                    color = 0xffff00;
+                    opacity = 0.4;
+                    break;
+                case 'gps':
+                    color = 0x00ff00;
+                    opacity = 0.2;
+                    break;
+                case 'starlink':
+                    color = 0x00ffff;
+                    opacity = 0.08;
+                    break;
+            }
+
+            const material = new THREE.LineBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: opacity
+            });
+
+            return new THREE.Line(geometry, material);
+        }
+
+        // 衛星表示切替
+        function toggleSatellites() {
+            const checkbox = document.getElementById('toggleSatellites');
+            satellitesVisible = checkbox.checked;
+            satelliteGroup.visible = satellitesVisible;
+            satelliteOrbitLines.forEach(line => {
+                line.visible = satellitesVisible;
+            });
+        }
+
+        document.getElementById('toggleSatellites').addEventListener('change', toggleSatellites);
+
+        // 衛星データ取得ボタン
+        document.getElementById('loadSatellites').addEventListener('click', fetchSatellites);
+
+        // 衛星情報表示
+        function showSatelliteInfo(satellite, type) {
+            const panel = document.getElementById('infoPanel');
+
+            let typeLabel = '人工衛星';
+            switch (type) {
+                case 'iss': typeLabel = '国際宇宙ステーション'; break;
+                case 'starlink': typeLabel = 'Starlink通信衛星'; break;
+                case 'gps': typeLabel = 'GPS航法衛星'; break;
+                case 'weather': typeLabel = '気象衛星'; break;
+            }
+
+            panel.innerHTML = `
+                <h2>${satellite.satname}</h2>
+                <p><strong>種類:</strong> ${typeLabel}</p>
+                <p><strong>NORAD ID:</strong> ${satellite.satid}</p>
+                <p><strong>軌道高度:</strong> ${satellite.satalt?.toLocaleString() || '不明'} km</p>
+                <p><strong>緯度:</strong> ${satellite.satlat?.toFixed(2) || '不明'}°</p>
+                <p><strong>経度:</strong> ${satellite.satlng?.toFixed(2) || '不明'}°</p>
+            `;
         }
 
         // =========================
@@ -571,6 +879,11 @@
         // 初期化
         fetchAsteroids(currentDate);
 
+        // 初期衛星データを読み込み
+        setTimeout(() => {
+            createSampleSatellites();
+        }, 1000);
+
         // =========================
         // アニメーション
         // =========================
@@ -585,6 +898,21 @@
             asteroidGroup.children.forEach((asteroid) => {
                 asteroid.rotation.x += asteroid.userData.rotationSpeed.x;
                 asteroid.rotation.y += asteroid.userData.rotationSpeed.y;
+            });
+
+            // 衛星のアニメーション（軌道周回）
+            satelliteGroup.children.forEach((satellite) => {
+                if (satellite.userData.orbitSpeed) {
+                    satellite.userData.orbitPhase += satellite.userData.orbitSpeed;
+
+                    const radius = satellite.userData.orbitRadius;
+                    const inclination = satellite.userData.orbitInclination;
+                    const phase = satellite.userData.orbitPhase;
+
+                    satellite.position.x = radius * Math.cos(phase);
+                    satellite.position.y = radius * Math.sin(inclination) * Math.sin(phase);
+                    satellite.position.z = radius * Math.cos(inclination) * Math.sin(phase);
+                }
             });
 
             controls.update();
